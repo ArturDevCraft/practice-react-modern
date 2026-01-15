@@ -2,14 +2,19 @@
 import React from 'react';
 import Box from './Box';
 import Div from './Div';
+import { TextContext } from '../context';
 
-const App = () => {
+function App() {
+    // const { Provider: ColorProvider } = ColorContext;
+    const { Provider: TextProvider } = TextContext;
     return (
         <section>
             <Box />
-            <Div />
+            <TextProvider value="sibling">
+                <Div />
+            </TextProvider>
         </section>
     );
-};
+}
 
 export default App;
