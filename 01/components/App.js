@@ -14,7 +14,7 @@ class App extends React.Component {
         }, 1000);
     }
 
-    componentWillUnmunt() {
+    componentWillUnmount() {
         clearInterval(this.intervalId);
     }
 
