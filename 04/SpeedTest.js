@@ -53,7 +53,7 @@ function SpeedTest() {
             </label>
             <p>
                 {testFinnished &&
-                    `TEST ZAKOŃCZONY - Prędkość pisania: ${speed} kliknięć na sekundę`}
+                    `TEST ZAKOŃCZONY - Prędkość pisania: ${speed.toFixed(3)} kliknięć na sekundę`}
             </p>
         </div>
     );
