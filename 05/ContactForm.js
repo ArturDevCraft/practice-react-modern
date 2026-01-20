@@ -1,4 +1,5 @@
 import React, { useReducer, useState } from 'react';
+import emailjs from '@emailjs/browser';
 
 import account from './account';
 
@@ -22,12 +23,15 @@ function ContactForm() {
         { name: 'subject', type: 'text', label: 'Temat', regex: /.{5,100}/, required: true },
         { name: 'message', type: 'textarea', label: 'Wiadomość' },
     ];
-    // eslint-disable-next-line no-console
-    console.log(account);
     const initFormVal = Object.fromEntries(formFields.map((field) => [field.name, '']));
     const reducerForm = (state, { name, value }) => ({ ...state, [name]: value });
     const [formValues, formDispatch] = useReducer(reducerForm, initFormVal);
-    const [formErrors, setFormErrors] = useState(null);
+
+    const initialErrors = { formErrors: null, sendError: null };
+    const reducerError = (state, { type, payload }) => ({ ...state, [type]: payload });
+    const [errors, errorsDispatch] = useReducer(reducerError, initialErrors);
+    const [mailSent, setMailSent] = useState(false);
+    const [sending, setSending] = useState(false);
 
     function checkPattern(pattern, val) {
         const regex = new RegExp(pattern);
@@ -43,35 +47,74 @@ function ContactForm() {
 
     function validate(e, fields) {
         e.preventDefault();
-        const errors = new Map([]);
+        const validationErrors = new Map([]);
 
         fields.forEach((field) => {
             const { value } = e.target[field.name];
             const { label } = field;
             if (field.required && !isNotEmpty(value)) {
-                errors.set(field.name, `Pole: ${label} jest puste`);
+                validationErrors.set(field.name, `Pole: ${label} jest puste`);
             } else if (field.regex && isNotEmpty(value)) {
                 const isCorrect = checkPattern(field.regex, value);
-                if (!isCorrect) errors.set(field.name, `Pole: ${label} ma niewłaściwy format`);
+                if (!isCorrect)
+                    validationErrors.set(field.name, `Pole: ${label} ma niewłaściwy format`);
             }
         });
 
-        if (errors.size > 0) {
-            return errors;
+        if (validationErrors.size > 0) {
+            return validationErrors;
         }
         return null;
     }
 
+    const resetFormValues = () => {
+        formFields.forEach((field) => {
+            const { name } = field;
+            formDispatch({ name, value: '' });
+        });
+    };
+
+    const sendEmailJS = () => {
+        const { serviceID, templateID, publicKey } = account;
+        const { name, email, phone, subject, message } = formValues;
+        const templateParams = {
+            name,
+            message,
+            title: subject,
+            email,
+            phone,
+        };
+        setSending(true);
+
+        emailjs.send(serviceID, templateID, templateParams, { publicKey }).then(
+            () => {
+                setMailSent(true);
+                setSending(false);
+                resetFormValues();
+            },
+            (err) => {
+                setSending(false);
+                errorsDispatch({ type: 'sendError', payload: err });
+            },
+        );
+    };
+
     const submitHandler = (e) => {
         e.preventDefault();
-        const errors = validate(e, formFields);
-        if (errors !== null) {
-            setFormErrors(errors);
+        const validationErrors = validate(e, formFields);
+        if (validationErrors !== null) {
+            errorsDispatch({ type: 'formErrors', payload: validationErrors });
+        } else {
+            errorsDispatch({ type: 'formErrors', payload: null });
+            sendEmailJS();
         }
     };
 
     return (
         <form onSubmit={submitHandler}>
+            {errors.sendError && <span> {errors.sendError}</span>}
+            {mailSent && <span> Wysłano</span>}
+            {sending && <span> Wysyłam...</span>}
             {formFields.map((field) => {
                 const Tag = field.type === 'textarea' ? 'textarea' : 'input';
                 return (
@@ -85,8 +128,8 @@ function ContactForm() {
                             value={formValues[field.name]}
                             onChange={(e) => formDispatch(e.target)}
                         />
-                        {formErrors && formErrors.has(field.name) && (
-                            <span>{formErrors.get(field.name)}</span>
+                        {errors.formErrors && errors.formErrors.has(field.name) && (
+                            <span>{errors.formErrors.get(field.name)}</span>
                         )}
                     </div>
                 );
